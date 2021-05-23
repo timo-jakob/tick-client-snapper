@@ -2,6 +2,7 @@ package com.github.timojakob.snapper;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.StatusRuntimeException;
 import java.text.MessageFormat;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
@@ -39,42 +40,40 @@ public class TickerConsumer implements Runnable {
   }
 
   private void updateSnapMap(snapper.TickerSimulatorResponse response) {
-    if (!Thread.interrupted()) {
-      if (++counter % 100000 == 0)
-        logger.info(MessageFormat.format("{0} ticks consumed", Integer.valueOf(counter)));
 
-      var snapShot = snapMap.get(response.getSymbol());
+    if (++counter % 100000 == 0)
+      logger.info(MessageFormat.format("{0} ticks consumed", Integer.valueOf(counter)));
 
-      if (snapShot == null) {
-        // there was never a tick for this symbol. We create a new entry with the new tick
-        var newSnapShot =
-            new SnapShot(
-                response.getTs(),
-                response.getPrice(),
-                response.getPrice(),
-                response.getPrice(),
-                response.getVolume(),
-                response.getVolume());
+    var snapShot = snapMap.get(response.getSymbol());
 
-        snapMap.put(response.getSymbol(), newSnapShot);
-      } else {
-        // As there is already a snapshot available, we update it with the new tick.
-        var newHigh =
-            (response.getPrice() > snapShot.high() ? response.getPrice() : snapShot.high());
-        var newLow = (response.getPrice() < snapShot.low() ? response.getPrice() : snapShot.low());
-        var newTotal = response.getVolume() + snapShot.totalVolume();
+    if (snapShot == null) {
+      // there was never a tick for this symbol. We create a new entry with the new tick
+      var newSnapShot =
+          new SnapShot(
+              response.getTs(),
+              response.getPrice(),
+              response.getPrice(),
+              response.getPrice(),
+              response.getVolume(),
+              response.getVolume());
 
-        var updatedSnapShot =
-            new SnapShot(
-                response.getTs(),
-                response.getPrice(),
-                newLow,
-                newHigh,
-                newTotal,
-                response.getVolume());
+      snapMap.put(response.getSymbol(), newSnapShot);
+    } else {
+      // As there is already a snapshot available, we update it with the new tick.
+      var newHigh = (response.getPrice() > snapShot.high() ? response.getPrice() : snapShot.high());
+      var newLow = (response.getPrice() < snapShot.low() ? response.getPrice() : snapShot.low());
+      var newTotal = response.getVolume() + snapShot.totalVolume();
 
-        snapMap.put(response.getSymbol(), updatedSnapShot);
-      }
+      var updatedSnapShot =
+          new SnapShot(
+            response.getTs(),
+            response.getPrice(),
+            newLow,
+            newHigh,
+            newTotal,
+            response.getVolume());
+
+      snapMap.put(response.getSymbol(), updatedSnapShot);
     }
   }
 
@@ -85,14 +84,20 @@ public class TickerConsumer implements Runnable {
 
     // creating the request to send to the tickserver to retrieve the tick stream
     var request = snapper.TickerSimulatorRequest.newBuilder()
-        .setActive(true)
+        .setChunkSize(1000000)
         .build();
 
-    // sending the request and iterating through the stream with the tickerResponses
-    client.startTicker(request)
-        .forEachRemaining(this::updateSnapMap);
-
-    // As we finished reading from the channel, we close the channel
-    shutdownChannel();
+    try {
+    // now let's consume forever until we get interrupted
+    while (!Thread.interrupted()) {
+      // sending the request and iterating through the stream with the tickerResponses
+      client.startTicker(request).forEachRemaining(this::updateSnapMap);
+    }
+    } catch (StatusRuntimeException e) {
+      logger.info("reading ticker stream aborted");
+    } finally {
+      // As we finished reading from the channel, we close the channel
+      shutdownChannel();
+    }
   }
 }

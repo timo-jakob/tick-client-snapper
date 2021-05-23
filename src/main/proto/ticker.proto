@@ -6,7 +6,7 @@ option java_package = "snapper";
 option java_multiple_files = true;
 
 message TickerSimulatorRequest {
-  bool active = 1;
+  int32 chunkSize = 1;
 }
 
 message TickerSimulatorResponse {
