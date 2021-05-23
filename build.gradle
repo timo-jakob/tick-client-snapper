@@ -1,7 +1,30 @@
 plugins {
 	id 'org.springframework.boot' version '2.5.0'
 	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
-	id 'java'
+	id 'application'
+	id 'com.google.protobuf' version '0.8.16'
+}
+
+protobuf {
+	protoc {
+		artifact = "com.google.protobuf:protoc:3.17.0"
+	}
+	plugins {
+		grpc {
+			artifact = 'io.grpc:protoc-gen-grpc-java:1.38.0'
+		}
+	}
+	generateProtoTasks {
+		all()*.plugins {
+			grpc {}
+		}
+	}
+}
+
+sourceSets {
+	main {
+		java.srcDirs += ['build/generated/source/proto/main']
+	}
 }
 
 group = 'com.github.timojakob'
@@ -15,6 +38,13 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	// grpc (see https://github.com/grpc/grpc-java)
+	implementation 'io.grpc:grpc-netty-shaded:1.38.0'
+	implementation 'io.grpc:grpc-protobuf:1.38.0'
+	implementation 'io.grpc:grpc-stub:1.38.0'
+
+	compileOnly 'org.apache.tomcat:annotations-api:6.0.53' // necessary for Java 9+
 }
 
 test {

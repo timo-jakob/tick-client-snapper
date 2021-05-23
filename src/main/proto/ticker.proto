@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package ticker;
+
+option java_package = "snapper";
+option java_multiple_files = true;
+
+message TickerSimulatorRequest {
+  bool active = 1;
+}
+
+message TickerSimulatorResponse {
+  int64 ts = 1;
+  string symbol = 2;
+  int32 price = 3;
+  int32 volume = 4;
+}
+
+service TickerSimulatorService {
+  rpc StartTicker(TickerSimulatorRequest) returns (stream TickerSimulatorResponse) {};
+}
