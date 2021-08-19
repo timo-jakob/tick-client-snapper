@@ -14,11 +14,7 @@ class SnapperApplicationTests {
 
 	@Test
 	void checkJavaVersion() {
-		String javaVersionStr = System.getProperty("java.version");
-		int dotIndex = javaVersionStr.indexOf(".");
-		String majorVersionStr = dotIndex < 0 ? "UNKNOWN" : javaVersionStr.substring(0, dotIndex);
-
-		assertEquals("16", majorVersionStr, "Testing with wrong java version");
+		assertEquals(16, Runtime.version().feature(), "Java 16 needed but bot found.");
 	}
 
 }

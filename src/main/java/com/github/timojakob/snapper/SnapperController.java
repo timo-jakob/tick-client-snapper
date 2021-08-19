@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SnapperController {
 
   private final Logger logger = Logger.getLogger(SnapperController.class.getName());
-  private ConcurrentHashMap<String, SnapShot> snapMap = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, SnapShot> snapMap = new ConcurrentHashMap<>();
   private Thread tickConsumerThread = null;
 
   @GetMapping("/subscribe")
@@ -39,7 +39,7 @@ public class SnapperController {
 
     var snapShot = snapMap.get(symbol);
     if (snapShot == null)
-      return new ResponseEntity<SnapShot>(HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     else 
       return ResponseEntity.ok().body(snapShot);
   }

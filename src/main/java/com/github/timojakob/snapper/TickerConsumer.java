@@ -15,7 +15,7 @@ public class TickerConsumer implements Runnable {
   private ManagedChannel channel = null;
   private snapper.TickerSimulatorServiceGrpc.TickerSimulatorServiceBlockingStub client;
 
-  private ConcurrentMap<String, SnapShot> snapMap;
+  private final ConcurrentMap<String, SnapShot> snapMap;
 
   public TickerConsumer(ConcurrentMap<String, SnapShot> snapMap) {
     this.snapMap = snapMap;
