@@ -14,7 +14,7 @@ version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '16'
 
 def grpcVersion = "1.43.1"
-def protoVersion = "3.19.1"
+def protoVersion = "3.19.2"
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
