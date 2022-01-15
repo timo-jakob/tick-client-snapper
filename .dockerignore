@@ -1,0 +1,11 @@
+.dockerignore
+**/*.log
+Dockerfile
+.git
+.gitignore
+.gitattributes
+.idea
+.github
+.gradle
+README.md
+renovate.json
