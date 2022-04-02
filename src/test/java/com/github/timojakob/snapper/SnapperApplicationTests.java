@@ -14,7 +14,7 @@ class SnapperApplicationTests {
 
 	@Test
 	void checkJavaVersion() {
-		assertEquals(17, Runtime.version().feature(), "Java 17 needed but bot found.");
+		assertEquals(18, Runtime.version().feature(), "Java 18 needed but bot found.");
 	}
 
 }
