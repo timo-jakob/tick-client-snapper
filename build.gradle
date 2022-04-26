@@ -13,7 +13,7 @@ repositories {
 group = 'com.github.timojakob'
 sourceCompatibility = '17'
 
-def grpcVersion = "1.45.1"
+def grpcVersion = "1.46.0"
 def protoVersion = "3.20.1"
 
 dependencies {
