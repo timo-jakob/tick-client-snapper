@@ -14,7 +14,7 @@ group = 'com.github.timojakob'
 sourceCompatibility = '19'
 
 def grpcVersion = "1.57.0"
-def protoVersion = "3.23.4"
+def protoVersion = "3.24.0"
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
