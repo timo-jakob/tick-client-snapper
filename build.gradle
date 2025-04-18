@@ -15,7 +15,7 @@ group = 'com.github.timojakob'
 
 ext {
 	grpcVersion = "1.72.0"
-	protoVersion = "4.29.3"
+	protoVersion = "4.30.2"
 }
 
 
