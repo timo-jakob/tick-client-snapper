@@ -1,0 +1,104 @@
+# Contributing to tick-client-snapper
+
+Thanks for contributing! This project enforces a **Zero Tolerance standard** on
+new code: ≥90% line coverage, 0 code smells, and A ratings across Reliability,
+Security, Maintainability, and Security Review. The 90% coverage bar is
+enforced in CI by a `coverage-floor` step (and locally by a matching pre-push
+hook); the smells / ratings / hotspot signals are enforced by the configured
+Sonar Quality Gate. See the [Quality Gate](#quality-gate) section below for
+the full layered model.
+
+To keep the feedback loop fast, the same checks run **locally** before they run
+in CI. Don't skip them.
+
+> **Found a security issue?** Don't open a public issue. See
+> [`SECURITY.md`](./.github/SECURITY.md) for the private disclosure flow
+> (GitHub Security Advisories).
+
+## Setup
+
+1. Install [pre-commit](https://pre-commit.com): `pip install pre-commit` (or
+   `brew install pre-commit`).
+2. Install the hooks: `pre-commit install`.
+3. Install language-specific tooling listed in [SETUP.md](./SETUP.md).
+
+## Workflow
+
+### 1. Branch from `main`
+
+Branch names follow `<type>/<issue-number>-<short-description>`:
+- `feat/42-add-oauth-login`
+- `fix/87-null-pointer-on-empty-cart`
+- `chore/101-upgrade-to-node-20`
+
+Types: `feat`, `fix`, `hotfix`, `chore`, `refactor`, `docs`.
+
+If you use Claude Code with the `development` plugin, the
+`/development:git-branch-naming` skill handles this automatically.
+
+### 2. Run checks while you work
+
+Don't wait for CI to find problems:
+
+```sh
+# Lint + format your changes
+pre-commit run --all-files
+
+# Static analysis
+semgrep --config=auto
+
+# Tests with coverage (language-dependent — see SETUP.md)
+```
+
+The implementing agent (Claude Code) is configured via `CLAUDE.md` to run these
+proactively after editing code.
+
+### 3. Commit
+
+```sh
+git add <files>
+git commit -m "feat: short imperative summary"
+```
+
+If you use Claude Code, `/development:commit` orchestrates linting + message
+generation + commit for you.
+
+### 4. Open a PR
+
+Push your branch and open a PR. CI will run:
+- Static analysis (SonarCloud or self-hosted SonarQube)
+- Security scans (Snyk on public; Trivy on private)
+- Language-specific tests + coverage
+- Semgrep + CodeQL (public only)
+- Secret scanning
+
+A PR can only merge to `main` when all required checks pass and a
+review is approved.
+
+## Quality Gate
+
+The Zero Tolerance standard is the same in either case; the **layer** that
+enforces each condition depends on the Sonar tier in use:
+
+| Condition | Threshold | Enforced by |
+|---|---|---|
+| Coverage on new code | ≥ 90% | `coverage-floor` CI step (`diff-cover`) + pre-push hook |
+| Code smells on new code | = 0 | Sonar Quality Gate |
+| Bugs on new code | = 0 | Sonar Quality Gate |
+| Vulnerabilities on new code | = 0 | Sonar Quality Gate |
+| Security hotspots reviewed | 100% | Sonar Quality Gate |
+| Reliability rating on new code | A | Sonar Quality Gate |
+| Security rating on new code | A | Sonar Quality Gate |
+| Maintainability rating on new code | A | Sonar Quality Gate |
+| Security review rating on new code | A | Sonar Quality Gate |
+| Duplicated lines on new code | ≤ 3% | Sonar Quality Gate |
+
+The Sonar Quality Gate is the custom "Zero Tolerance" gate on paid SonarCloud
+or self-hosted SonarQube CE. On **SonarCloud free**, custom-gate assignment is
+paywalled (Team/Enterprise feature) — the project falls back to the default
+`Sonar way` gate, which is the same set of conditions at slightly lower
+thresholds (e.g. 80% coverage, not 90). The `coverage-floor` CI step still
+carries the 90% bar regardless, so the standard is preserved.
+
+Applies to **new code only** — historical debt is tracked separately and does
+not block new merges.

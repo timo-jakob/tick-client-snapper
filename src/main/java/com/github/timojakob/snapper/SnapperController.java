@@ -38,9 +38,7 @@ public class SnapperController {
     logger.info("GET request snapshot called");
 
     var snapShot = snapMap.get(symbol);
-    if (snapShot == null)
-      return new ResponseEntity<SnapShot>(HttpStatus.NOT_FOUND);
-    else 
-      return ResponseEntity.ok().body(snapShot);
+    if (snapShot == null) return new ResponseEntity<SnapShot>(HttpStatus.NOT_FOUND);
+    else return ResponseEntity.ok().body(snapShot);
   }
 }

@@ -23,15 +23,15 @@ public class TickerConsumer implements Runnable {
 
   private void setUpChannel() {
     // define the channel where the ticks come from via gRPC
-    channel = ManagedChannelBuilder.forAddress("localhost", 50051)
-        .usePlaintext() // we ignore encryption for now
-        .build();
+    channel =
+        ManagedChannelBuilder.forAddress("localhost", 50051)
+            .usePlaintext() // we ignore encryption for now
+            .build();
 
     logger.info("ManagedChannel opened for server streaming");
 
     // Instantiating a client that makes use of the channel
-    client = snapper.TickerSimulatorServiceGrpc
-        .newBlockingStub(channel);
+    client = snapper.TickerSimulatorServiceGrpc.newBlockingStub(channel);
   }
 
   private void shutdownChannel() {
@@ -66,12 +66,12 @@ public class TickerConsumer implements Runnable {
 
       var updatedSnapShot =
           new SnapShot(
-            response.getTs(),
-            response.getPrice(),
-            newLow,
-            newHigh,
-            newTotal,
-            response.getVolume());
+              response.getTs(),
+              response.getPrice(),
+              newLow,
+              newHigh,
+              newTotal,
+              response.getVolume());
 
       snapMap.put(response.getSymbol(), updatedSnapShot);
     }
@@ -83,16 +83,14 @@ public class TickerConsumer implements Runnable {
     setUpChannel();
 
     // creating the request to send to the tickserver to retrieve the tick stream
-    var request = snapper.TickerSimulatorRequest.newBuilder()
-        .setChunkSize(1000000)
-        .build();
+    var request = snapper.TickerSimulatorRequest.newBuilder().setChunkSize(1000000).build();
 
     try {
-    // now let's consume forever until we get interrupted
-    while (!Thread.interrupted()) {
-      // sending the request and iterating through the stream with the tickerResponses
-      client.startTicker(request).forEachRemaining(this::updateSnapMap);
-    }
+      // now let's consume forever until we get interrupted
+      while (!Thread.interrupted()) {
+        // sending the request and iterating through the stream with the tickerResponses
+        client.startTicker(request).forEachRemaining(this::updateSnapMap);
+      }
     } catch (StatusRuntimeException e) {
       logger.info("reading ticker stream aborted");
     } finally {

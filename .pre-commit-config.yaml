@@ -1,0 +1,73 @@
+# Pre-commit hooks — run locally before each commit to enforce shift-left.
+# Install with: pip install pre-commit && pre-commit install
+# Run on all files: pre-commit run --all-files
+#
+# Language-specific blocks below are gated by the bootstrap skill — only the
+# blocks matching java are kept; the rest are stripped.
+
+repos:
+  # --- universal hooks -------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # --- YAML lint -------------------------------------------------------------
+  # Style + correctness for all YAML, using the repo's .yamllint config
+  # (line-length 120, GitHub Actions `on:` allowed). Complements check-yaml,
+  # which only validates syntax.
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+
+  # --- secret scanning -------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # --- static analysis (cross-language) --------------------------------------
+  - repo: https://github.com/returntocorp/semgrep
+    rev: v1.163.0
+    hooks:
+      - id: semgrep
+        args: ["--config=auto", "--error", "--quiet"]
+
+  # --- JAVA ------------------------------------------------------------------
+  # Spotless (google-java-format) via the project's Gradle wrapper. Local hook
+  # because Spotless is a Gradle plugin, not a standalone binary; `spotlessApply`
+  # reformats Java (and Kotlin/Kotlin-DSL when the project's spotless config adds
+  # a ktlint() step). Slower than ruff (Gradle daemon), so scoped to changed
+  # sources. Requires the com.diffplug.spotless plugin in build.gradle(.kts) —
+  # see the Java setup recommendation in SETUP.md / the bootstrap summary.
+  - repo: local
+    hooks:
+      - id: spotless
+        name: Spotless (google-java-format)
+        entry: ./gradlew --no-daemon spotlessApply
+        language: system
+        files: \.(java|kt|kts)$
+        pass_filenames: false
+
+  # Coverage floor — local mirror of the CI `coverage-floor` step. Same
+  # diff-cover invocation on the JaCoCo XML, same 90%-on-new-code threshold.
+  # Stage is pre-push (compares against origin/main). Contract:
+  # assumes a recent `./gradlew test jacocoTestReport` produced the XML.
+  - repo: local
+    hooks:
+      - id: coverage-floor-java
+        name: Coverage floor (90% on new code) — requires recent gradlew test jacocoTestReport
+        entry: diff-cover build/reports/jacoco/test/jacocoTestReport.xml --compare-branch=origin/main --fail-under=90
+        language: python
+        additional_dependencies: ["diff-cover>=9"]
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

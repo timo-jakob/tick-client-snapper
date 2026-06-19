@@ -1,0 +1,187 @@
+# claude-bootstrap: rendered from public/.github/workflows/quality-public.yml.tmpl @ v1.43.0 sha256:0ca850b76081a28bc1579f738088b503d90847418b90d227d1a50070c20a31b1
+# (do not edit this line; the maintenance pipeline uses it for drift detection — see #213)
+# Quality + security pipeline for PUBLIC repositories.
+# Runs on github-hosted runners. Uses SonarCloud for static analysis +
+# coverage. Snyk's GitHub App handles SAST + Open Source as PR-time
+# advisory checks (and Snyk's auto-Fix-PR flow for OSS — see SETUP.md
+# section 2.6).
+
+name: Quality (public)
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
+      - "docs/**"
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
+      - "docs/**"
+  release:
+    types: [published]
+  schedule:
+    # Weekly Monday 06:00 UTC — drift detection against newly-disclosed CVEs
+    # and updated license categorizations. Matches CodeQL's weekly cadence.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+# Least-privilege workflow defaults.
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # --- Tests + coverage -----------------------------------------------------
+  test-and-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        # No fetch-depth: 0 here — the SonarCloud job below does its own
+        # checkout with full history. Test runners don't need git blame.
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build + test + coverage (Java)
+        # `gradle build` runs the full `check` (incl. Spotless when applied)
+        # plus tests; jacocoTestReport emits the XML that SonarCloud and
+        # diff-cover consume. The wrapper (./gradlew) pins the Gradle version.
+        run: ./gradlew --no-daemon build jacocoTestReport
+
+      # Coverage floor — 90% on new code, the load-bearing enforcer on
+      # SonarCloud free (mirrors the Python diff-cover gate). diff-cover reads
+      # the JaCoCo XML directly. PR-only — push to default has no "new code".
+      - name: Install diff-cover (Java — coverage floor)
+        if: github.event_name == 'pull_request'
+        run: pipx install 'diff-cover>=9'
+      - name: Fetch base ref for diff-cover (Java)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --prune --depth=100 origin \
+            "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+      - name: Coverage floor — 90% on new code (Java)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          diff-cover build/reports/jacoco/test/jacocoTestReport.xml \
+            --compare-branch="origin/${BASE_REF}" \
+            --fail-under=90 \
+            --show-uncovered
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-reports
+          path: |
+            build/reports/jacoco/test/jacocoTestReport.xml
+          if-no-files-found: ignore
+
+  # --- SonarCloud -----------------------------------------------------------
+  sonarcloud:
+    needs: test-and-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Download coverage
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-reports
+          path: .
+        # No continue-on-error: if test-and-coverage didn't produce coverage,
+        # Sonar should fail loudly rather than silently report green without it.
+      - name: SonarCloud scan
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+  # --- Snyk source-code + open-source scans -----------------------------------
+  # NOT a CI job. Snyk runs via the **Snyk GitHub integration** (App), never
+  # against SNYK_TOKEN in CI — a `snyk test`/`snyk code test` job would be
+  # redundant with the integration and double-count the monthly test quota.
+  #
+  # Two integration features (configured in the Snyk Web UI — see SETUP.md
+  # §2.5–2.6) do the work, and they are deliberately split:
+  #
+  #   1. Pull request status checks
+  #      Snyk → Settings → Integrations → GitHub → Pull request status checks
+  #        Open Source security and licenses → DISABLE
+  #            Third-party CVEs surface and change independently of our code —
+  #            a clean release goes vulnerable the moment a new CVE lands — so
+  #            they must NOT gate a build. They're handled out-of-band: daily
+  #            Snyk monitoring → auto-fix PRs → the maintenance pipeline, plus
+  #            Renovate. (Leaving this ON yields the `security/snyk` check.)
+  #        Code analysis                     → ENABLE
+  #            SAST on our OWN code is a fair PR gate, kept ON as defense in
+  #            depth alongside CodeQL (two engines beat one). Yields the
+  #            `code/snyk` check on net-new code vulnerabilities.
+  #
+  #   2. Continuous monitoring + Automatic Fix PRs
+  #      Daily re-test of the imported target; when a vulnerable dependency has
+  #      a known fix, Snyk opens a `snyk-fix-*` PR that the maintenance pipeline
+  #      triages alongside Renovate. This — NOT the PR status checks — is what
+  #      produces fix PRs.
+
+  # --- License compliance (dependencies) ------------------------------------
+  # Uses Trivy as an open-source license scanner. Catches deps shipping
+  # incompatible licenses (AGPL/SSPL → HIGH severity, blocks CI by default).
+  # Policy customizable via trivy.yaml.
+  license-fs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          scanners: "license"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          format: "table"
+          trivy-config: trivy.yaml
+
+  # --- Semgrep (free OSS rules) ---------------------------------------------
+  semgrep:
+    runs-on: ubuntu-latest
+    container:
+      # Pinned. Matches the pre-commit hook's semgrep version so local + CI
+      # behave identically. Bump in lockstep with `.pre-commit-config.yaml`.
+      image: returntocorp/semgrep:1.163.0
+    steps:
+      - uses: actions/checkout@v6
+      - run: semgrep ci --config=auto
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}   # optional
+
+  # --- Pre-commit (CI backstop) ---------------------------------------------
+  # Catches contributors who bypassed local hooks with `git commit
+  # --no-verify` or pushed from a machine without pre-commit installed.
+  # Runs the exact same hooks as locally.
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # some hooks (gitleaks) want history
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: pre-commit/action@v3.0.1

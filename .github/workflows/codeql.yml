@@ -1,0 +1,52 @@
+# claude-bootstrap: rendered from public/.github/workflows/codeql.yml.tmpl @ v1.43.0 sha256:9402d97eced6de4b0d3d6df0481e6023b012b2ab127dbce4a84f83d445858257
+# (do not edit this line; the maintenance pipeline uses it for drift detection — see #213)
+# CodeQL — GitHub-native SAST, free for public repos. The primary SAST
+# signal consumed by /development:maintenance via the Code Scanning API.
+# Sonar adds a second opinion. Snyk's GitHub App also posts a SAST PR
+# check (advisory only — not gathered by the maintenance pipeline).
+
+name: CodeQL
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
+      - "docs/**"
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
+      - "docs/**"
+  schedule:
+    - cron: "0 6 * * 1"   # weekly Monday 06:00 UTC — drift detection
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Languages auto-filled by bootstrap. CodeQL supports:
+        # cpp, csharp, go, java, javascript, python, ruby, swift
+        language: [java]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+      - uses: github/codeql-action/autobuild@v4
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
