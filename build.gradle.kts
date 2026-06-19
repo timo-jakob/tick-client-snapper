@@ -57,14 +57,11 @@ protobuf {
     }
 }
 
-sourceSets {
-    main {
-        java {
-            srcDirs("build/generated/source/proto/main/grpc")
-            srcDirs("build/generated/source/proto/main/java")
-        }
-    }
-}
+// NOTE: do NOT manually add the protobuf output dirs to the `main` source set.
+// The com.google.protobuf plugin already registers its real output
+// (build/generated/sources/proto/...) with the source set automatically. A
+// manual srcDirs entry pointing at a stale/parallel path (e.g. the singular
+// "source" dir) causes the same stubs to be compiled twice -> "duplicate class".
 
 testing {
     suites {
