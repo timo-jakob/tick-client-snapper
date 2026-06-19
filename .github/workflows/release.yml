@@ -1,3 +1,5 @@
+# claude-bootstrap: rendered from languages/java/.github/workflows/release.yml.tmpl @ v1.48.2 sha256:0f959722c0cd8c3afbc8d38585bfa25fa0bcf5bd33e5f56c704e2cf11059787e
+# (do not edit this line; the maintenance pipeline uses it for drift detection — see #213)
 # Release workflow — build-driven semantic versioning via nebula-release.
 #
 # The project version is DERIVED from git tags by the nebula.release Gradle
@@ -30,8 +32,8 @@ on:
         options: ["auto", "patch", "minor", "major"]
         default: "auto"
 
-# Least-privilege default; the release job widens to contents: write below
-# (nebula's `final` task pushes the release tag).
+# Least-privilege default at workflow scope; the release job widens to
+# contents: write below (nebula's `final` task pushes the release tag).
 permissions:
   contents: read
 
