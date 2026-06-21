@@ -128,11 +128,19 @@ tasks.named("sonar") { dependsOn(tasks.named("jacocoTestReport")) }
 // gate (mirrors sonar.coverage.exclusions in sonar-project.properties). Done in
 // a top-level afterEvaluate so the source-set class dirs are populated first and
 // it runs in the valid project-evaluation context.
+//
+// NOTE on the exclusion pattern: the com.google.protobuf plugin compiles the
+// generated stubs into build/classes/java/main/<package>/ — NOT into a
+// build/generated/ subtree of the class directory. JaCoCo's classDirectories
+// fileTree roots are already inside build/classes/java/main/, so the pattern
+// must match the package path, not the source-generation path.
+// The .proto declares `option java_package = "snapper"`, so all generated
+// message + gRPC stub classes land in the top-level "snapper" package.
 afterEvaluate {
     tasks.jacocoTestReport {
         classDirectories.setFrom(
             classDirectories.files.map {
-                fileTree(it) { exclude("**/build/generated/**") }
+                fileTree(it) { exclude("snapper/**") }
             },
         )
     }
