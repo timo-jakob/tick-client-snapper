@@ -120,6 +120,14 @@ sonar {
     }
 }
 
+// Make the OCI image name explicit (same value Paketo derives by default) so
+// tooling and CI scripts can reference a stable, predictable name.
+// Builder/run-image pinning, publish config, and BP_JVM_VERSION alignment are
+// deferred to human review — see actions_requiring_review in the container audit.
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootBuildImage>("bootBuildImage") {
+    imageName.set("${project.group}/${project.name}:${project.version}")
+}
+
 // Guarantee the JaCoCo XML is produced before analysis (Gradle doesn't order
 // unrelated command-line tasks), so coverage is always reported to SonarCloud.
 tasks.named("sonar") { dependsOn(tasks.named("jacocoTestReport")) }
