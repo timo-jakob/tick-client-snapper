@@ -25,23 +25,29 @@ group = "com.github.timojakob"
 
 val grpcVersion = "1.78.0"
 val protoVersion = "4.34.1"
+val tomcatAnnotationsApiVersion = "6.0.53"
 
 dependencies {
+    // Spring Boot
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    testImplementation("org.springframework.boot:spring-boot-starter-test") {
-        exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
-    }
 
     // grpc (see https://github.com/grpc/grpc-java)
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     implementation("io.grpc:grpc-protobuf:$grpcVersion")
     implementation("io.grpc:grpc-stub:$grpcVersion")
 
+    // Protobuf
     implementation("com.google.protobuf:protobuf-java:$protoVersion")
     implementation("com.google.protobuf:protobuf-java-util:$protoVersion")
 
-    compileOnly("org.apache.tomcat:annotations-api:6.0.53") // necessary for Java 9+
+    // Test
+    testImplementation("org.springframework.boot:spring-boot-starter-test") {
+        exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
+    }
+
+    // Compile-only
+    compileOnly("org.apache.tomcat:annotations-api:$tomcatAnnotationsApiVersion") // necessary for Java 9+
 }
 
 protobuf {

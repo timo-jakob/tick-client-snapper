@@ -59,8 +59,9 @@ on:
 
 # Default permissions are read-only — the App token (minted in-job) is
 # what actually posts the review. GITHUB_TOKEN never gets pull_requests:write.
-permissions:
-  contents: read
+# Permissions scoped to job level (gate needs none; approve needs contents:read
+# for checkout). Workflow-level default is {} so each job declares what it needs.
+permissions: {}
 
 # Debounce per PR so two evaluators don't race on the same SHA. With the
 # gate job's wait loop (#232) this also keeps exactly one waiter alive:
@@ -93,6 +94,10 @@ jobs:
     runs-on: ubuntu-latest
     # Covers the wait loop (up to ~30 min) plus the gate API calls.
     timeout-minutes: 40
+    permissions:
+      pull-requests: read   # gh api repos/.../pulls, gh pr view
+      checks: read          # gh api repos/.../commits/.../check-runs
+      statuses: read        # gh api repos/.../commits/.../status
     # Entry-point gate for `/approve` PR comments. Anyone with read access
     # can post a PR comment; without this `if:`, a random commenter could
     # fire the workflow on any PR and burn API tokens before the in-job
@@ -375,6 +380,8 @@ jobs:
     if: needs.gate.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read   # needed for actions/checkout below
     steps:
 
       # ============================================================
@@ -390,7 +397,7 @@ jobs:
       # ============================================================
       - name: Mint Approver App token
         id: app_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           client-id: ${{ vars.CLAUDE_APPROVER_APP_ID }}
           private-key: ${{ secrets.CLAUDE_APPROVER_PRIVATE_KEY }}
@@ -401,7 +408,7 @@ jobs:
       # is review-only and never pushes).
       # ============================================================
       - name: Checkout PR HEAD
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           ref: ${{ needs.gate.outputs.head_sha }}
           token: ${{ steps.app_token.outputs.token }}
@@ -414,7 +421,7 @@ jobs:
       # the canonical fork.
       # ============================================================
       - name: Checkout Claude plugin family
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: "timo-jakob/timos-claude-code-plugins"
           ref: "f34c8b5420fc3b4658bc36b5cbcc39ff1c7c30c0"
@@ -423,14 +430,14 @@ jobs:
 
       # ============================================================
       # Install Claude Code CLI.
-      # TODO (Phase 3): pin to a specific Claude Code version once the
+      # TODO (Phase 3): pin to a specific Claude Code version once the # NOSONAR: tracked work item; CLI does not yet ship versioned releases or checksums
       # CLI ships versioned releases; finalise the install URL against
       # what the approver agent's testing actually uses.
       # ============================================================
       - name: Install Claude Code
         run: |
           set -e
-          curl -fsSL https://claude.ai/install.sh | bash
+          curl -fsSL https://claude.ai/install.sh | bash # NOSONAR: official Anthropic installer over HTTPS; no checksum provided by upstream yet (see TODO above)
           # Add common install locations to PATH; first match wins.
           for d in "$HOME/.local/bin" "$HOME/.claude/bin" "$HOME/.npm-global/bin"; do
             if [ -x "$d/claude" ]; then
