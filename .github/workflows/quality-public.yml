@@ -1,10 +1,16 @@
-# claude-bootstrap: rendered from public/.github/workflows/quality-public.yml.tmpl @ v1.43.0 sha256:0ca850b76081a28bc1579f738088b503d90847418b90d227d1a50070c20a31b1
+# claude-bootstrap: rendered from public/.github/workflows/quality-public.yml.tmpl @ v1.49.3 sha256:769ad856eaf36739ec21f7ed560b2a5ab03bf9bec4ed852fa74f9d2d447ae69c
 # (do not edit this line; the maintenance pipeline uses it for drift detection — see #213)
 # Quality + security pipeline for PUBLIC repositories.
 # Runs on github-hosted runners. Uses SonarCloud for static analysis +
 # coverage. Snyk's GitHub App handles SAST + Open Source as PR-time
 # advisory checks (and Snyk's auto-Fix-PR flow for OSS — see SETUP.md
-# section 2.6).
+# section 2.6). This workflow only runs the `image` channel: Snyk
+# container scan on the built Docker image, which the GitHub App can't
+# see.
+#
+# Image publishing: built image is scanned, then pushed to GitHub Container
+# Registry (ghcr.io/<owner>/<repo>) on merge to main + release events. The
+# scan gates the push — a vulnerable image never reaches the registry.
 
 name: Quality (public)
 
@@ -31,7 +37,10 @@ on:
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
-# Least-privilege workflow defaults.
+# Least-privilege workflow defaults. Individual jobs may widen as needed:
+# the `image` job needs `packages: write` + `id-token: write` for GHCR
+# push and cosign keyless signing; nothing else needs anything beyond
+# `contents: read`.
 permissions:
   contents: read
 
@@ -39,14 +48,24 @@ concurrency:
   group: quality-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
-  # --- Tests + coverage -----------------------------------------------------
+  # --- Tests + coverage per language ----------------------------------------
+  # The bootstrap skill keeps only the steps matching detected languages.
+
   test-and-coverage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        # No fetch-depth: 0 here — the SonarCloud job below does its own
-        # checkout with full history. Test runners don't need git blame.
+        # Full history: the coverage-floor step runs `diff-cover` against
+        # origin/main, which needs a merge base. A shallow (depth-1) checkout
+        # only fetches the PR merge commit, so diff-cover fails with
+        # "fatal: origin/main...HEAD: no merge base".
+        with:
+          fetch-depth: 0
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -72,7 +91,7 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          git fetch --no-tags --prune --depth=100 origin \
+          git fetch --no-tags --prune origin \
             "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
       - name: Coverage floor — 90% on new code (Java)
         if: github.event_name == 'pull_request'
@@ -89,29 +108,36 @@ jobs:
         with:
           name: coverage-reports
           path: |
+            coverage.xml
+            coverage.out
+            coverage.lcov
+            coverage/lcov.info
             build/reports/jacoco/test/jacocoTestReport.xml
           if-no-files-found: ignore
 
   # --- SonarCloud -----------------------------------------------------------
   sonarcloud:
-    needs: test-and-coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Download coverage
-        uses: actions/download-artifact@v8
+      - name: Setup JDK
+        uses: actions/setup-java@v4
         with:
-          name: coverage-reports
-          path: .
-        # No continue-on-error: if test-and-coverage didn't produce coverage,
-        # Sonar should fail loudly rather than silently report green without it.
-      - name: SonarCloud scan
-        uses: SonarSource/sonarqube-scan-action@v8
+          distribution: "temurin"
+          java-version: "21"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      # The org.sonarqube Gradle plugin runs in-build, so it sees the compiled
+      # classes + the JaCoCo XML directly and auto-configures
+      # sonar.java.binaries/sources/tests/coverage. `build` runs the tests, which
+      # finalize the JaCoCo report; `sonar` then uploads the analysis. A
+      # standalone scanner-CLI job can't see build/classes and fails on Java.
+      - name: Build + analyze (SonarCloud via Gradle plugin)
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
+        run: ./gradlew --no-daemon build sonar
 
   # --- Snyk source-code + open-source scans -----------------------------------
   # NOT a CI job. Snyk runs via the **Snyk GitHub integration** (App), never
@@ -128,17 +154,25 @@ jobs:
   #            a clean release goes vulnerable the moment a new CVE lands — so
   #            they must NOT gate a build. They're handled out-of-band: daily
   #            Snyk monitoring → auto-fix PRs → the maintenance pipeline, plus
-  #            Renovate. (Leaving this ON yields the `security/snyk` check.)
-  #        Code analysis                     → ENABLE
-  #            SAST on our OWN code is a fair PR gate, kept ON as defense in
-  #            depth alongside CodeQL (two engines beat one). Yields the
-  #            `code/snyk` check on net-new code vulnerabilities.
+  #            Dependabot. (Leaving this ON yields the `security/snyk` check.)
+  #        Code analysis                     → DISABLE
+  #            SAST on our OWN code is already covered by CodeQL (the required
+  #            `analyze (<lang>)` checks). Snyk Code adds no incremental
+  #            coverage on the free tier, where its monthly test cap makes
+  #            `code/snyk` go ERROR ("Code test limit reached") — and that
+  #            advisory legacy status used to silently skip the Claude Approver
+  #            (#387). Disabling it drops the `code/snyk` check; CodeQL stays
+  #            the SAST gate.
   #
   #   2. Continuous monitoring + Automatic Fix PRs
   #      Daily re-test of the imported target; when a vulnerable dependency has
   #      a known fix, Snyk opens a `snyk-fix-*` PR that the maintenance pipeline
-  #      triages alongside Renovate. This — NOT the PR status checks — is what
+  #      triages alongside Dependabot. This — NOT the PR status checks — is what
   #      produces fix PRs.
+  #
+  # The `image` job below stays a CI job because the integration only scans the
+  # Dockerfile statically — it doesn't build the image and inspect installed
+  # packages.
 
   # --- License compliance (dependencies) ------------------------------------
   # Uses Trivy as an open-source license scanner. Catches deps shipping

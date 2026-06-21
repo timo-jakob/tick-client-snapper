@@ -10,6 +10,11 @@ plugins {
     // Added by /development:bootstrap — CI + pre-commit prerequisites.
     id("com.diffplug.spotless") version "7.0.2"
     jacoco
+    // SonarCloud analysis runs in-build via the Gradle plugin (`./gradlew sonar`)
+    // so the scanner sees compiled classes + the JaCoCo report directly and
+    // auto-configures binaries/sources/coverage. Replaces the standalone
+    // scanner-CLI job that had no access to build/classes.
+    id("org.sonarqube") version "7.3.1.8318"
 }
 
 repositories {
@@ -88,6 +93,25 @@ tasks.jacocoTestReport {
 }
 
 tasks.test { finalizedBy(tasks.jacocoTestReport) }
+
+// SonarCloud analysis (org.sonarqube). The plugin auto-detects sources, tests,
+// compiled binaries, and the JaCoCo XML report because it runs in-build. Only
+// the project identity + the generated-stub exclusions need declaring here;
+// keep these in sync with sonar-project.properties (read by the maintenance
+// tooling). The analysis token is supplied via the SONAR_TOKEN env var in CI.
+sonar {
+    properties {
+        property("sonar.projectKey", "timo-jakob_tick-client-snapper")
+        property("sonar.organization", "timo-jakob-github")
+        property("sonar.host.url", "https://sonarcloud.io")
+        property("sonar.exclusions", "**/build/generated/**")
+        property("sonar.coverage.exclusions", "**/build/generated/**")
+    }
+}
+
+// Guarantee the JaCoCo XML is produced before analysis (Gradle doesn't order
+// unrelated command-line tasks), so coverage is always reported to SonarCloud.
+tasks.named("sonar") { dependsOn(tasks.named("jacocoTestReport")) }
 
 // Keep generated protobuf/gRPC stubs out of coverage so they don't skew the
 // gate (mirrors sonar.coverage.exclusions in sonar-project.properties). Done in
