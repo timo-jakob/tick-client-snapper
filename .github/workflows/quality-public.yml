@@ -60,8 +60,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        # No fetch-depth: 0 here — the SonarCloud job below does its own
-        # checkout with full history. Test runners don't need git blame.
+        # Full history: the coverage-floor step runs `diff-cover` against
+        # origin/main, which needs a merge base. A shallow (depth-1) checkout
+        # only fetches the PR merge commit, so diff-cover fails with
+        # "fatal: origin/main...HEAD: no merge base".
+        with:
+          fetch-depth: 0
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -87,7 +91,7 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          git fetch --no-tags --prune --depth=100 origin \
+          git fetch --no-tags --prune origin \
             "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
       - name: Coverage floor — 90% on new code (Java)
         if: github.event_name == 'pull_request'
