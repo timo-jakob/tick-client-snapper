@@ -4,7 +4,7 @@ plugins {
     id("org.springframework.boot") version "4.0.1"
     id("io.spring.dependency-management") version "1.1.7"
     application
-    id("com.google.protobuf") version "0.9.6"
+    id("com.google.protobuf") version "0.10.0"
     id("nebula.release") version "21.0.0"
     `jvm-test-suite`
     // Added by /development:bootstrap — CI + pre-commit prerequisites.
