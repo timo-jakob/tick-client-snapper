@@ -467,14 +467,12 @@ jobs:
 
       # ============================================================
       # Install Claude Code CLI.
-      # TODO (Phase 3): pin to a specific Claude Code version once the # NOSONAR: tracked work item; CLI does not yet ship versioned releases or checksums
-      # CLI ships versioned releases; finalise the install URL against
-      # what the approver agent's testing actually uses.
+      # TODO (Phase 3): pin to a specific Claude Code version once the CLI ships versioned releases; finalise the install URL against what the approver agent's testing actually uses. # NOSONAR: githubactions:S1135 — tracked work item; CLI does not yet ship versioned releases or checksums
       # ============================================================
       - name: Install Claude Code
         run: |
           set -e
-          curl -fsSL https://claude.ai/install.sh | bash # NOSONAR: official Anthropic installer over HTTPS; no checksum provided by upstream yet (see TODO above)
+          curl -fsSL https://claude.ai/install.sh | bash # NOSONAR: githubactions:S8482,githubactions:S6506,githubactions:S1135 — official Anthropic installer served over HTTPS; no upstream checksum available; install method is the only supported path (see TODO Phase 3 above)
           # Add common install locations to PATH; first match wins.
           for d in "$HOME/.local/bin" "$HOME/.claude/bin" "$HOME/.npm-global/bin"; do
             if [ -x "$d/claude" ]; then
