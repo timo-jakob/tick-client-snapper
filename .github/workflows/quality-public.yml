@@ -198,7 +198,7 @@ jobs:
     container:
       # Pinned. Matches the pre-commit hook's semgrep version so local + CI
       # behave identically. Bump in lockstep with `.pre-commit-config.yaml`.
-      image: returntocorp/semgrep:1.163.0
+      image: returntocorp/semgrep:1.168.0
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - run: semgrep ci --config=auto
