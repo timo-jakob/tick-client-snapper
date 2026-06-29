@@ -8,7 +8,7 @@ plugins {
     id("nebula.release") version "21.0.0"
     `jvm-test-suite`
     // Added by /development:bootstrap — CI + pre-commit prerequisites.
-    id("com.diffplug.spotless") version "7.0.2"
+    id("com.diffplug.spotless") version "8.8.0"
     jacoco
     // SonarCloud analysis runs in-build via the Gradle plugin (`./gradlew sonar`)
     // so the scanner sees compiled classes + the JaCoCo report directly and
