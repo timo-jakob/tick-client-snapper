@@ -67,8 +67,12 @@ dependencies {
 // plugin and configures the protobuf extension itself: it registers protoc
 // (com.google.protobuf:protoc, version-aligned with protobuf-java on the runtime
 // classpath -> $protoVersion) and the "grpc" codegen plugin
-// (io.grpc:protoc-gen-grpc-java, version-aligned with io.grpc:grpc-util -> $grpcVersion),
-// and wires the grpc plugin into all generate-proto tasks. The previous manual
+// (io.grpc:protoc-gen-grpc-java, version-aligned with io.grpc:grpc-util). That
+// codegen locator is managed by Spring Boot's gRPC BOM independently of the
+// $grpcVersion declared above (which pins the grpc-netty-shaded/grpc-protobuf/
+// grpc-stub runtime deps to 1.78.0); the BOM currently resolves grpc-util and
+// protoc-gen-grpc-java to 1.80.0 (see gradle.lockfile).
+// It wires the grpc plugin into all generate-proto tasks. The previous manual
 // protobuf { protoc/plugins/generateProtoTasks } block duplicated exactly that and
 // now fails ("ExecutableLocator with name 'grpc' already exists"), so it was removed.
 // See: https://docs.spring.io/spring-boot/gradle-plugin/reacting.html
