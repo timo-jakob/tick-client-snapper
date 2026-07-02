@@ -27,11 +27,21 @@ val grpcVersion = "1.78.0"
 val protoVersion = "4.34.1"
 val tomcatAnnotationsApiVersion = "6.0.53"
 
-// NOSONAR: S8569, S6474 — Gradle dependency verification (verification-metadata.xml) is
-// intentionally not enabled. This repo uses Renovate for automated dependency updates; a
-// committed verification-metadata.xml would fail-closed on every bump PR and make automated
-// updates unmaintainable. Supply-chain integrity is instead enforced through SHA-pinned GitHub
-// Actions (S7637), Snyk open-source scanning, Trivy FS scanning, and Dependabot alerts.
+// Gradle dependency locking (S8569) — a committed gradle.lockfile pins the fully resolved
+// dependency graph so builds are reproducible and versions are predictable. Renovate keeps the
+// lockfile current automatically (`--update-locks` on regular updates, `--write-locks` during
+// lock-file maintenance), so it stays maintainable under this repo's automated-update flow.
+// Regenerate locally with `./gradlew dependencies --write-locks`.
+//
+// Dependency *verification* (gradle/verification-metadata.xml, S6474) — checksum/signature
+// verification — is a separate, fail-closed mechanism that is NOT enabled here; that decision is
+// deferred to human review (see the maintenance report). Supply-chain integrity is meanwhile
+// enforced through SHA-pinned GitHub Actions (S7637), Snyk open-source scanning, Trivy FS
+// scanning, and Dependabot alerts.
+dependencyLocking {
+    lockAllConfigurations()
+}
+
 dependencies {
     // Spring Boot
     implementation("org.springframework.boot:spring-boot-starter-web")
