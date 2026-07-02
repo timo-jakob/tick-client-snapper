@@ -170,15 +170,19 @@ class TickerConsumerTest {
     var handler =
         new Handler() {
           @Override
-          public void publish(LogRecord record) {
-            records.add(record);
+          public void publish(LogRecord logRecord) {
+            records.add(logRecord);
           }
 
           @Override
-          public void flush() {}
+          public void flush() {
+            // No buffering: records are stored eagerly in publish(), so there is nothing to flush.
+          }
 
           @Override
-          public void close() {}
+          public void close() {
+            // No resources are held by this in-memory capture handler, so close() is a no-op.
+          }
         };
     handler.setLevel(Level.ALL);
 
