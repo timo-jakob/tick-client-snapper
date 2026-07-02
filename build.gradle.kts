@@ -1,7 +1,5 @@
-import com.google.protobuf.gradle.id
-
 plugins {
-    id("org.springframework.boot") version "4.0.1"
+    id("org.springframework.boot") version "4.1.0"
     id("io.spring.dependency-management") version "1.1.7"
     application
     id("com.google.protobuf") version "0.9.6"
@@ -65,23 +63,15 @@ dependencies {
     compileOnly("org.apache.tomcat:annotations-api:$tomcatAnnotationsApiVersion") // necessary for Java 9+
 }
 
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:$protoVersion"
-    }
-    plugins {
-        id("grpc") {
-            artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion"
-        }
-    }
-    generateProtoTasks {
-        all().forEach {
-            it.plugins {
-                id("grpc")
-            }
-        }
-    }
-}
+// Since Spring Boot 4.1, the Boot Gradle plugin reacts to the com.google.protobuf
+// plugin and configures the protobuf extension itself: it registers protoc
+// (com.google.protobuf:protoc, version-aligned with protobuf-java on the runtime
+// classpath -> $protoVersion) and the "grpc" codegen plugin
+// (io.grpc:protoc-gen-grpc-java, version-aligned with io.grpc:grpc-util -> $grpcVersion),
+// and wires the grpc plugin into all generate-proto tasks. The previous manual
+// protobuf { protoc/plugins/generateProtoTasks } block duplicated exactly that and
+// now fails ("ExecutableLocator with name 'grpc' already exists"), so it was removed.
+// See: https://docs.spring.io/spring-boot/gradle-plugin/reacting.html
 
 // NOTE: do NOT manually add the protobuf output dirs to the `main` source set.
 // The com.google.protobuf plugin already registers its real output
