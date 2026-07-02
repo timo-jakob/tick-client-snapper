@@ -42,7 +42,7 @@ public class TickerConsumer implements Runnable {
   private void updateSnapMap(snapper.TickerSimulatorResponse response) {
 
     if (++counter % 100000 == 0)
-      logger.info(MessageFormat.format("{0} ticks consumed", Integer.valueOf(counter)));
+      logger.info(() -> MessageFormat.format("{0} ticks consumed", Integer.valueOf(counter)));
 
     var snapShot = snapMap.get(response.getSymbol());
 

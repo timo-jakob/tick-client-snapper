@@ -3,10 +3,16 @@ package com.github.timojakob.snapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import snapper.TickerSimulatorResponse;
@@ -150,6 +156,51 @@ class TickerConsumerTest {
     org.junit.jupiter.api.Assertions.assertNotSame(
         first, second, "an update must store a new snapshot for the symbol");
     assertSame(second, snapMap.get("AAPL"));
+  }
+
+  @Test
+  void everyHundredThousandthTickEmitsALazilyFormattedProgressLogLine() throws Exception {
+    // The progress line in updateSnapMap fires once per 100_000 ticks and is built lazily via a
+    // Supplier, so the message is only formatted when INFO is loggable. Drive the counter to the
+    // boundary (via reflection, to avoid feeding 100_000 real ticks) and capture the log output to
+    // prove the supplier body runs and yields the expected message — keeping production behaviour
+    // unchanged.
+    var logger = Logger.getLogger(TickerConsumer.class.getName());
+    var records = new CopyOnWriteArrayList<LogRecord>();
+    var handler =
+        new Handler() {
+          @Override
+          public void publish(LogRecord record) {
+            records.add(record);
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+    handler.setLevel(Level.ALL);
+
+    var previousLevel = logger.getLevel();
+    logger.setLevel(Level.INFO);
+    logger.addHandler(handler);
+    try {
+      var counterField = TickerConsumer.class.getDeclaredField("counter");
+      counterField.setAccessible(true);
+      counterField.setInt(consumer, 99_999); // the next tick rolls it to 100_000: the report point
+
+      feed(1L, "AAPL", 100, 1);
+
+      var emittedProgressLine =
+          records.stream()
+              .map(LogRecord::getMessage)
+              .anyMatch(m -> m != null && m.contains("ticks consumed"));
+      assertTrue(emittedProgressLine, "the 100_000th tick must emit a progress log line");
+    } finally {
+      logger.removeHandler(handler);
+      logger.setLevel(previousLevel);
+    }
   }
 
   @Test
