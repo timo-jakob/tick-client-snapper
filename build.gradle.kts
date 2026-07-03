@@ -21,9 +21,17 @@ repositories {
 
 group = "com.github.timojakob"
 
-val grpcVersion = "1.78.0"
+val grpcVersion = "1.80.0"
 val protoVersion = "4.35.1"
 val tomcatAnnotationsApiVersion = "6.0.53"
+
+// grpc-java offers no io.grpc.internal compatibility across versions, so every io.grpc
+// artifact must resolve to the same version. The Boot BOM imports io.grpc:grpc-bom via
+// its `grpc-java.version` property; overriding that property with $grpcVersion makes the
+// BOM-managed transitives (grpc-api/core/context/util/protobuf-lite) and the
+// protoc-gen-grpc-java codegen locator follow the explicit runtime deps below instead of
+// diverging from them (the skew that blocked PR #212 — see issue #247).
+extra["grpc-java.version"] = grpcVersion
 
 // Gradle dependency locking (S8569) — a committed gradle.lockfile pins the fully resolved
 // dependency graph so builds are reproducible and versions are predictable. Renovate keeps the
@@ -68,10 +76,10 @@ dependencies {
 // (com.google.protobuf:protoc, version-aligned with protobuf-java on the runtime
 // classpath -> $protoVersion) and the "grpc" codegen plugin
 // (io.grpc:protoc-gen-grpc-java, version-aligned with io.grpc:grpc-util). That
-// codegen locator is managed by Spring Boot's gRPC BOM independently of the
-// $grpcVersion declared above (which pins the grpc-netty-shaded/grpc-protobuf/
-// grpc-stub runtime deps to 1.78.0); the BOM currently resolves grpc-util and
-// protoc-gen-grpc-java to 1.80.0 (see gradle.lockfile).
+// codegen locator is managed by Spring Boot's gRPC BOM, which follows $grpcVersion
+// through the `grpc-java.version` property override above, so protoc-gen-grpc-java,
+// grpc-util, and the explicit grpc-netty-shaded/grpc-protobuf/grpc-stub runtime deps
+// all resolve to the same version (see gradle.lockfile).
 // It wires the grpc plugin into all generate-proto tasks. The previous manual
 // protobuf { protoc/plugins/generateProtoTasks } block duplicated exactly that and
 // now fails ("ExecutableLocator with name 'grpc' already exists"), so it was removed.
