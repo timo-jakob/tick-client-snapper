@@ -22,7 +22,7 @@ repositories {
 group = "com.github.timojakob"
 
 val grpcVersion = "1.78.0"
-val protoVersion = "4.34.1"
+val protoVersion = "4.35.1"
 val tomcatAnnotationsApiVersion = "6.0.53"
 
 // Gradle dependency locking (S8569) — a committed gradle.lockfile pins the fully resolved
