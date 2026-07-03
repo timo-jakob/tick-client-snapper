@@ -73,7 +73,7 @@ jobs:
           distribution: "temurin"
           java-version: "21"
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
       - name: Build + test + coverage (Java)
         # `gradle build` runs the full `check` (incl. Spotless when applied)
         # plus tests; jacocoTestReport emits the XML that SonarCloud and
@@ -128,7 +128,7 @@ jobs:
           distribution: "temurin"
           java-version: "21"
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
       # The org.sonarqube Gradle plugin runs in-build, so it sees the compiled
       # classes + the JaCoCo XML directly and auto-configures
       # sonar.java.binaries/sources/tests/coverage. `build` runs the tests, which
