@@ -12,7 +12,7 @@ plugins {
     // so the scanner sees compiled classes + the JaCoCo report directly and
     // auto-configures binaries/sources/coverage. Replaces the standalone
     // scanner-CLI job that had no access to build/classes.
-    id("org.sonarqube") version "7.3.1.8318"
+    id("org.sonarqube") version "7.5.0.8588"
 }
 
 repositories {
