@@ -21,7 +21,7 @@ repositories {
 
 group = "com.github.timojakob"
 
-val grpcVersion = "1.82.1"
+val grpcVersion = "1.84.0"
 val protoVersion = "4.35.1"
 val tomcatAnnotationsApiVersion = "6.0.53"
 
